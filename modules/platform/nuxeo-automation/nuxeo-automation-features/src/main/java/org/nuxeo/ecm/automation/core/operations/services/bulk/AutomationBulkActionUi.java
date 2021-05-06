@@ -18,6 +18,9 @@
  */
 package org.nuxeo.ecm.automation.core.operations.services.bulk;
 
+import org.nuxeo.runtime.api.Framework;
+import org.nuxeo.runtime.services.config.ConfigurationService;
+
 /**
  * Bulk Action that runs an automation operation dedicated for UI
  *
@@ -25,6 +28,11 @@ package org.nuxeo.ecm.automation.core.operations.services.bulk;
  */
 public class AutomationBulkActionUi extends AutomationBulkAction {
     public static final String ACTION_NAME = "automationUi";
+    private static final String QUERY_LIMIT_PREFIX = "org.nuxeo.ecm.automation.ui.bulk.queryLimit.";
+
+    public static int getQueryLimit(String operationId) {
+        return Framework.getService(ConfigurationService.class).getInteger(QUERY_LIMIT_PREFIX + operationId, 0);
+    }
 
     @Override
     protected String getActionName() {

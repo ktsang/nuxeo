@@ -21,9 +21,12 @@ package org.nuxeo.ecm.automation.core.operations.services.bulk;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_FORBIDDEN;
 import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
+import static org.nuxeo.ecm.automation.core.operations.services.bulk.AbstractAutomationBulkAction.OPERATION_ID;
 
 import java.io.IOException;
 import java.util.stream.Collectors;
+import java.io.Serializable;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -143,12 +146,9 @@ public class BulkRunAction {
         }
 
         BulkCommand.Builder builder = new BulkCommand.Builder(action, query, session.getPrincipal().getName());
-        try {
-            builder.params(BulkParameters.paramsToMap(parametersAsJson));
-        } catch (IOException e) {
-            throw new NuxeoException("Could not parse parameters, expecting valid json value", e, SC_BAD_REQUEST);
-        }
 
+        Map<String, Serializable> params = getParams(parametersAsJson);
+        builder.params(params);
         if (repositoryName != null) {
             builder.repository(repositoryName);
         } else {
@@ -162,6 +162,14 @@ public class BulkRunAction {
         }
         if (queryLimit > 0) {
             builder.queryLimit(queryLimit);
+        } else if (action == "automation-ui" && params.containsKey(OPERATION_ID)) {
+            // automation actions from UI can be limited
+            String operationId = (String) params.get(OPERATION_ID);
+            int limit = AutomationBulkActionUi.getQueryLimit(operationId);
+            if (limit > 0) {
+                log.debug("Set queryLimit to {} for automation-ui operationId: {}", limit, operationId);
+                builder.queryLimit(limit);
+            }
         }
         String commandId;
         try {
@@ -174,6 +182,14 @@ public class BulkRunAction {
         BulkStatus status = service.getStatus(commandId);
         log.debug("Status: {}", status);
         return status;
+    }
+
+    protected Map<String, Serializable> getParams(String parametersAsJson) {
+        try {
+            return BulkParameters.paramsToMap(parametersAsJson);
+        } catch (IOException e) {
+            throw new NuxeoException("Could not parse parameters, expecting valid json value", e, SC_BAD_REQUEST);
+        }
     }
 
     protected String addExcludeClause(String query, StringList excludeDocs) {
